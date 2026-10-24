@@ -1,0 +1,36 @@
+{
+  "name": "sg-haze",
+  "author": "darylcklau",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "scripts": {
+    "test": "node test/haze.test.js"
+  },
+  "pebble": {
+    "displayName": "SG Haze",
+    "uuid": "6b801db7-6a03-439f-97ae-63a9cc7999e1",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery"],
+    "watchapp": {
+      "watchface": false
+    },
+    "messageKeys": [
+      "REQUEST",
+      "ERROR",
+      "PSI",
+      "PM25",
+      "PSI_NORTH",
+      "PSI_SOUTH",
+      "PSI_EAST",
+      "PSI_WEST",
+      "PSI_CENTRAL",
+      "UPDATED"
+    ],
+    "resources": {
+      "media": []
+    }
+  }
+}

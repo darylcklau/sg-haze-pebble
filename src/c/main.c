@@ -5,12 +5,15 @@
 #define PERSIST_KEY_DATA 1
 #define MISSING -1
 #define NUM_REGIONS 5
+// Readings older than this are flagged on screen.
+#define STALE_SECONDS (2 * 60 * 60)
 
 typedef struct {
   int32_t psi;
   int32_t pm25;
   int32_t regions[NUM_REGIONS];  // north, south, east, west, central
   char updated[8];
+  int32_t epoch;                 // UTC seconds of the reading, or MISSING
   bool valid;
 } HazeData;
 
@@ -27,6 +30,7 @@ static char s_psi_buf[8];
 static char s_pm25_buf[40];
 static char s_region_buf[48];
 static char s_status_buf[40];
+static char s_age_buf[16];
 
 // ---- NEA bands -----------------------------------------------------------
 
@@ -76,8 +80,34 @@ static GColor band_fg(int band) {
 
 // ---- Rendering -----------------------------------------------------------
 
+static bool is_stale(void) {
+  return s_data.epoch == MISSING || time(NULL) - s_data.epoch > STALE_SECONDS;
+}
+
+// "14:00" while fresh, then "5h old" / "3d old" so old data never looks current.
+static const char *age_label(void) {
+  if (!is_stale()) {
+    return s_data.updated;
+  }
+  if (s_data.epoch == MISSING) {
+    return "age unknown";
+  }
+  int hours = (int)((time(NULL) - s_data.epoch) / 3600);
+  if (hours < 48) {
+    snprintf(s_age_buf, sizeof(s_age_buf), "%dh old", hours);
+  } else {
+    snprintf(s_age_buf, sizeof(s_age_buf), "%dd old", hours / 24);
+  }
+  return s_age_buf;
+}
+
+// Shows a status message, plus the age of the cached reading when there is one.
 static void set_status(const char *text) {
-  snprintf(s_status_buf, sizeof(s_status_buf), "%s", text);
+  if (s_data.valid) {
+    snprintf(s_status_buf, sizeof(s_status_buf), "%s - %s", text, age_label());
+  } else {
+    snprintf(s_status_buf, sizeof(s_status_buf), "%s", text);
+  }
   text_layer_set_text(s_status_layer, s_status_buf);
 }
 
@@ -123,12 +153,12 @@ static void render(void) {
 static void request_refresh(void) {
   DictionaryIterator *iter;
   if (app_message_outbox_begin(&iter) != APP_MSG_OK) {
-    set_status("Phone busy");
+    set_status("Busy");
     return;
   }
   dict_write_int8(iter, MESSAGE_KEY_REQUEST, 1);
   app_message_outbox_send();
-  set_status("Refreshing...");
+  set_status("Refreshing");
 }
 
 static int32_t tuple_int(DictionaryIterator *iter, uint32_t key) {
@@ -158,6 +188,7 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
   Tuple *updated = dict_find(iter, MESSAGE_KEY_UPDATED);
   snprintf(s_data.updated, sizeof(s_data.updated), "%s",
            updated ? updated->value->cstring : "--:--");
+  s_data.epoch = tuple_int(iter, MESSAGE_KEY_UPDATED_EPOCH);
   s_data.valid = true;
   persist_write_data(PERSIST_KEY_DATA, &s_data, sizeof(s_data));
 
@@ -167,12 +198,12 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
   }
 
   render();
-  snprintf(s_status_buf, sizeof(s_status_buf), "Updated %s SGT", s_data.updated);
-  text_layer_set_text(s_status_layer, s_status_buf);
+  // NEA itself can lag, so a fresh fetch may still carry an old reading.
+  set_status(is_stale() ? "NEA data" : "Updated");
 }
 
 static void outbox_failed(DictionaryIterator *iter, AppMessageResult reason, void *context) {
-  set_status("Phone not connected");
+  set_status("No phone");
 }
 
 // ---- Input and timers ----------------------------------------------------
@@ -218,7 +249,7 @@ static void window_load(Window *window) {
                               FONT_KEY_GOTHIC_14);
 
   text_layer_set_text(s_title_layer, "SG 24-hr PSI");
-  set_status(s_data.valid ? "Cached - fetching..." : "Fetching...");
+  set_status(s_data.valid ? "Cached" : "Fetching...");
   render();
 }
 

@@ -65,7 +65,7 @@ function send(msg) {
 
 function refresh() {
   fetchParsed(ENDPOINTS.psi, haze.parsePsi, function (err, psi) {
-    if (err) return send({ ERROR: 'PSI unavailable' });
+    if (err) return send({ ERROR: 'NEA unavailable' });
     // PM2.5 is a nice-to-have; still show PSI if it fails.
     fetchParsed(ENDPOINTS.pm25, haze.parsePm25, function (err2, pm25) {
       send(haze.toMessage(psi, err2 ? null : pm25));

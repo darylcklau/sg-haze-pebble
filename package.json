@@ -27,7 +27,8 @@
       "PSI_EAST",
       "PSI_WEST",
       "PSI_CENTRAL",
-      "UPDATED"
+      "UPDATED",
+      "UPDATED_EPOCH"
     ],
     "resources": {
       "media": []

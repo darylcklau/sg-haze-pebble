@@ -8,6 +8,8 @@ Shows Singapore's current haze status from NEA on your Pebble:
 - Regional 24-hr PSI for North, South, Central, East, West
 - Background colour follows the PSI band on colour watches; vibrates when the band gets worse
 - Last reading is cached on the watch, so it shows instantly on launch
+- The bottom line always says how old the reading is: `Updated - 14:00` while fresh,
+  `NEA data - 5h old` / `No phone - 2d old` once it is more than 2 hours old
 
 ## Data source
 

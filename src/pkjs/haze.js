@@ -45,10 +45,21 @@ function hhmm(timestamp) {
   return m ? m[1] : '--:--';
 }
 
+// Seconds since the Unix epoch (UTC), so the watch can tell how old a reading is.
+function epoch(timestamp) {
+  var ms = Date.parse(timestamp || '');
+  return isFinite(ms) ? Math.floor(ms / 1000) : MISSING;
+}
+
 function parsePsi(json) {
   var item = latestItem(json);
   var v = regional(item.readings.psi_twenty_four_hourly);
-  return { regions: v.slice(0, 5), psi: v[5], updated: hhmm(item.timestamp) };
+  return {
+    regions: v.slice(0, 5),
+    psi: v[5],
+    updated: hhmm(item.timestamp),
+    epoch: epoch(item.timestamp)
+  };
 }
 
 function parsePm25(json) {
@@ -65,7 +76,8 @@ function toMessage(psi, pm25) {
     PSI_EAST: psi.regions[2],
     PSI_WEST: psi.regions[3],
     PSI_CENTRAL: psi.regions[4],
-    UPDATED: psi.updated
+    UPDATED: psi.updated,
+    UPDATED_EPOCH: psi.epoch
   };
 }
 
@@ -74,5 +86,6 @@ module.exports = {
   parsePsi: parsePsi,
   parsePm25: parsePm25,
   toMessage: toMessage,
-  hhmm: hhmm
+  hhmm: hhmm,
+  epoch: epoch
 };

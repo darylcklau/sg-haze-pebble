@@ -39,6 +39,10 @@ var psi = haze.parsePsi(v2Psi);
 assert.strictEqual(psi.psi, 62);
 assert.deepStrictEqual(psi.regions, [55, 60, 58, 62, 57]);
 assert.strictEqual(psi.updated, '14:00');
+// 14:00 SGT (+08:00) is 06:00 UTC.
+assert.strictEqual(psi.epoch, Date.UTC(2026, 9, 24, 6, 0, 0) / 1000);
+assert.strictEqual(haze.epoch('garbage'), haze.MISSING);
+assert.strictEqual(haze.epoch(undefined), haze.MISSING);
 
 // v1 uses the explicit national value from the newest item.
 var psi1 = haze.parsePsi(v1Psi);
@@ -51,6 +55,7 @@ var msg = haze.toMessage(psi, null);
 assert.strictEqual(msg.PM25, haze.MISSING);
 assert.strictEqual(msg.PSI_WEST, 62);
 assert.strictEqual(msg.UPDATED, '14:00');
+assert.strictEqual(msg.UPDATED_EPOCH, psi.epoch);
 
 assert.throws(function () { haze.parsePsi({ code: 4, errorMsg: 'Rate limited' }); }, /Rate limited/);
 assert.throws(function () { haze.parsePsi({ data: { items: [] } }); }, /No readings/);

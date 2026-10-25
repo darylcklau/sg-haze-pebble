@@ -2,11 +2,12 @@
 
 Shows Singapore's current haze status from NEA on your Pebble:
 
-- **24-hr PSI** (national), big, with the NEA descriptor
-  (Good / Moderate / Unhealthy / Very Unhealthy / Hazardous)
-- **1-hr PM2.5** (worst region) with its band (Normal / Elevated / High / Very High)
-- Regional 24-hr PSI for North, South, Central, East, West
-- Background colour follows the PSI band on colour watches; vibrates when the band gets worse
+- **24-hr PSI** (national) and **1-hr PM2.5** (worst region) side by side in weight:
+  each gets half the screen, a large number, and its own NEA band colour
+  - PSI: Good / Moderate / Unhealthy / Very Unhealthy / Hazardous
+  - PM2.5: Normal / Elevated / High / Very High
+- **Down** opens a table of PSI and PM2.5 for North, South, East, West, Central
+- Vibrates when either reading moves into a worse band
 - Last reading is cached on the watch, so it shows instantly on launch
 - The bottom line always says how old the reading is: `Updated - 14:00` while fresh,
   `NEA data - 5h old` / `No phone - 2d old` once it is more than 2 hours old
@@ -26,6 +27,7 @@ can change at any time.
 
 - Opens and fetches automatically.
 - **Select** refreshes on demand.
+- **Down** shows the regional table; **Back** returns.
 - Refreshes itself at :05 and :35 past each hour while the app is open (NEA publishes hourly).
 
 ## Install from your phone (no SDK needed)

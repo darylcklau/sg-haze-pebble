@@ -27,6 +27,11 @@
       "PSI_EAST",
       "PSI_WEST",
       "PSI_CENTRAL",
+      "PM25_NORTH",
+      "PM25_SOUTH",
+      "PM25_EAST",
+      "PM25_WEST",
+      "PM25_CENTRAL",
       "UPDATED",
       "UPDATED_EPOCH"
     ],

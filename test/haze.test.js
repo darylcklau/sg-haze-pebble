@@ -49,10 +49,16 @@ var psi1 = haze.parsePsi(v1Psi);
 assert.strictEqual(psi1.psi, 61);
 assert.strictEqual(psi1.updated, '15:00');
 
-assert.strictEqual(haze.parsePm25(v2Pm25).pm25, 80);
+var pm = haze.parsePm25(v2Pm25);
+assert.strictEqual(pm.pm25, 80);
+assert.deepStrictEqual(pm.regions, [11, 9, 80, 12, 20]);
+var full = haze.toMessage(psi, pm);
+assert.strictEqual(full.PM25_EAST, 80);
+assert.strictEqual(full.PM25_CENTRAL, 20);
 
 var msg = haze.toMessage(psi, null);
 assert.strictEqual(msg.PM25, haze.MISSING);
+assert.strictEqual(msg.PM25_NORTH, haze.MISSING);
 assert.strictEqual(msg.PSI_WEST, 62);
 assert.strictEqual(msg.UPDATED, '14:00');
 assert.strictEqual(msg.UPDATED_EPOCH, psi.epoch);

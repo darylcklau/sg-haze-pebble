@@ -64,13 +64,20 @@ function parsePsi(json) {
 
 function parsePm25(json) {
   var item = latestItem(json);
-  return { pm25: regional(item.readings.pm25_one_hourly)[5] };
+  var v = regional(item.readings.pm25_one_hourly);
+  return { regions: v.slice(0, 5), pm25: v[5] };
 }
 
 function toMessage(psi, pm25) {
+  var pmRegions = pm25 ? pm25.regions : [MISSING, MISSING, MISSING, MISSING, MISSING];
   return {
     PSI: psi.psi,
     PM25: pm25 ? pm25.pm25 : MISSING,
+    PM25_NORTH: pmRegions[0],
+    PM25_SOUTH: pmRegions[1],
+    PM25_EAST: pmRegions[2],
+    PM25_WEST: pmRegions[3],
+    PM25_CENTRAL: pmRegions[4],
     PSI_NORTH: psi.regions[0],
     PSI_SOUTH: psi.regions[1],
     PSI_EAST: psi.regions[2],

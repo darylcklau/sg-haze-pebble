@@ -62,6 +62,8 @@ static TextLayer *s_status_layer;
 static Window *s_region_window;
 static TextLayer *s_region_title;
 static TextLayer *s_region_cols[3];
+// window_is_loaded() is still false inside the load handler, so track this ourselves.
+static bool s_regions_loaded;
 
 static HazeData s_data;
 static char s_status_buf[40];
@@ -248,7 +250,7 @@ static void append_value(char *buf, size_t size, int32_t value) {
 }
 
 static void render_regions(void) {
-  if (!s_region_window || !window_is_loaded(s_region_window)) return;
+  if (!s_regions_loaded) return;
   snprintf(s_region_bufs[0], sizeof(s_region_bufs[0]), "Region");
   snprintf(s_region_bufs[1], sizeof(s_region_bufs[1]), "PSI");
   snprintf(s_region_bufs[2], sizeof(s_region_bufs[2]), "PM2.5");
@@ -285,10 +287,12 @@ static void region_window_load(Window *window) {
                                            table.size.h), TABLE_FONT, GTextAlignmentRight);
   s_region_cols[2] = make_text(root, GRect(table.origin.x + name_w + col_w, table.origin.y, col_w,
                                            table.size.h), TABLE_FONT, GTextAlignmentRight);
+  s_regions_loaded = true;
   render_regions();
 }
 
 static void region_window_unload(Window *window) {
+  s_regions_loaded = false;
   text_layer_destroy(s_region_title);
   for (int i = 0; i < 3; i++) {
     text_layer_destroy(s_region_cols[i]);

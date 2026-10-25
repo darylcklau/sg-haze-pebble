@@ -20,6 +20,8 @@
 #define STATUS_FONT FONT_KEY_GOTHIC_18_BOLD
 #define STATUS_H 24
 #define TABLE_FONT FONT_KEY_GOTHIC_24_BOLD
+#define TABLE_INSET 4
+#define NAME_COL_PCT 46
 #else
 #define VALUE_FONT FONT_KEY_LECO_36_BOLD_NUMBERS
 #define VALUE_H 42
@@ -31,6 +33,9 @@
 #define STATUS_FONT FONT_KEY_GOTHIC_14_BOLD
 #define STATUS_H 20
 #define TABLE_FONT FONT_KEY_GOTHIC_18_BOLD
+// Narrow screens need wider number columns so "PM2.5" doesn't wrap.
+#define TABLE_INSET 2
+#define NAME_COL_PCT 36
 #endif
 
 typedef struct {
@@ -272,14 +277,14 @@ static void region_window_load(Window *window) {
   GRect b = layer_get_bounds(root);
   int w = b.size.w;
   int top = PBL_IF_ROUND_ELSE(18, 0);
-  int inset = PBL_IF_ROUND_ELSE(18, 4);
+  int inset = PBL_IF_ROUND_ELSE(18, TABLE_INSET);
 
   s_region_title = make_text(root, GRect(0, top, w, CAPTION_H + 4), DESC_FONT,
                              GTextAlignmentCenter);
   text_layer_set_text(s_region_title, "By region");
 
   GRect table = GRect(inset, top + CAPTION_H + 8, w - 2 * inset, b.size.h - top - CAPTION_H - 8);
-  int name_w = table.size.w * 46 / 100;
+  int name_w = table.size.w * NAME_COL_PCT / 100;
   int col_w = (table.size.w - name_w) / 2;
   s_region_cols[0] = make_text(root, GRect(table.origin.x, table.origin.y, name_w, table.size.h),
                                TABLE_FONT, GTextAlignmentLeft);

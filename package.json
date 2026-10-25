@@ -14,6 +14,7 @@
     "sdkVersion": "3",
     "enableMultiJS": true,
     "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery"],
+    "capabilities": ["location"],
     "watchapp": {
       "watchface": false
     },
@@ -33,7 +34,8 @@
       "PM25_WEST",
       "PM25_CENTRAL",
       "UPDATED",
-      "UPDATED_EPOCH"
+      "UPDATED_EPOCH",
+      "REGION"
     ],
     "resources": {
       "media": []

@@ -12,6 +12,7 @@ var ENDPOINTS = {
   ]
 };
 var TIMEOUT_MS = 15000;
+var LOCATE_TIMEOUT_MS = 10000;
 
 function getJson(url, cb) {
   var xhr = new XMLHttpRequest();
@@ -63,13 +64,53 @@ function send(msg) {
   });
 }
 
-function refresh() {
+// Calls back with the phone's position, or null if location is off or slow.
+function locate(cb) {
+  var done = false;
+  function finish(coords) {
+    if (done) return;
+    done = true;
+    cb(coords);
+  }
+  if (!navigator.geolocation) return finish(null);
+  // Some phones never call back when permission is denied, so don't wait forever.
+  setTimeout(function () { finish(null); }, LOCATE_TIMEOUT_MS + 2000);
+  navigator.geolocation.getCurrentPosition(
+    function (pos) { finish(pos.coords); },
+    function (e) {
+      console.log('SG Haze: no location (' + e.message + '), showing national reading');
+      finish(null);
+    },
+    { enableHighAccuracy: false, timeout: LOCATE_TIMEOUT_MS, maximumAge: 15 * 60 * 1000 }
+  );
+}
+
+function fetchReadings(cb) {
   fetchParsed(ENDPOINTS.psi, haze.parsePsi, function (err, psi) {
-    if (err) return send({ ERROR: 'NEA down' });
+    if (err) return cb(err);
     // PM2.5 is a nice-to-have; still show PSI if it fails.
     fetchParsed(ENDPOINTS.pm25, haze.parsePm25, function (err2, pm25) {
-      send(haze.toMessage(psi, err2 ? null : pm25));
+      cb(null, psi, err2 ? null : pm25);
     });
+  });
+}
+
+// Location and NEA data are fetched in parallel; the reply waits for both.
+function refresh() {
+  var pending = 2;
+  var coords, result;
+  function joined() {
+    if (--pending > 0) return;
+    if (result.err) return send({ ERROR: 'NEA down' });
+    var region = coords
+      ? haze.nearestRegion(coords.latitude, coords.longitude, result.psi.centres)
+      : haze.MISSING;
+    send(haze.toMessage(result.psi, result.pm25, region));
+  }
+  locate(function (c) { coords = c; joined(); });
+  fetchReadings(function (err, psi, pm25) {
+    result = { err: err, psi: psi, pm25: pm25 };
+    joined();
   });
 }
 

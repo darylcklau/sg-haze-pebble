@@ -4,6 +4,19 @@
 var REGIONS = ['north', 'south', 'east', 'west', 'central'];
 var MISSING = -1;
 
+// Label locations NEA publishes for each region (data.gov.sg region metadata).
+// Used when a response doesn't include them.
+var DEFAULT_CENTRES = {
+  north: { lat: 1.41803, lon: 103.82 },
+  south: { lat: 1.29587, lon: 103.82 },
+  east: { lat: 1.35735, lon: 103.94 },
+  west: { lat: 1.35735, lon: 103.7 },
+  central: { lat: 1.35735, lon: 103.82 }
+};
+
+// Rough bounding box for Singapore; outside it, regional readings don't apply.
+var SG_BOUNDS = { minLat: 1.15, maxLat: 1.48, minLon: 103.6, maxLon: 104.1 };
+
 function latestItem(json) {
   if (!json) throw new Error('Empty response');
   if (typeof json.code === 'number' && json.code !== 0) {
@@ -51,6 +64,47 @@ function epoch(timestamp) {
   return isFinite(ms) ? Math.floor(ms / 1000) : MISSING;
 }
 
+// Region centres from the response (v2 regionMetadata / v1 region_metadata),
+// falling back to the published defaults for any that are missing.
+function regionCentres(json) {
+  var root = (json && json.data) || json || {};
+  var meta = root.regionMetadata || root.region_metadata || [];
+  var centres = {};
+  REGIONS.forEach(function (r) { centres[r] = DEFAULT_CENTRES[r]; });
+  meta.forEach(function (m) {
+    var loc = m.labelLocation || m.label_location;
+    var lat = loc && Number(loc.latitude);
+    var lon = loc && Number(loc.longitude);
+    if (centres[m.name] && isFinite(lat) && isFinite(lon) && (lat || lon)) {
+      centres[m.name] = { lat: lat, lon: lon };
+    }
+  });
+  return centres;
+}
+
+// Index into REGIONS of the region whose centre is closest, or MISSING when
+// the position is outside Singapore.
+function nearestRegion(lat, lon, centres) {
+  if (!(lat >= SG_BOUNDS.minLat && lat <= SG_BOUNDS.maxLat &&
+        lon >= SG_BOUNDS.minLon && lon <= SG_BOUNDS.maxLon)) {
+    return MISSING;
+  }
+  centres = centres || DEFAULT_CENTRES;
+  var cosLat = Math.cos(lat * Math.PI / 180);
+  var best = MISSING;
+  var bestDist = Infinity;
+  REGIONS.forEach(function (r, i) {
+    var dx = (lon - centres[r].lon) * cosLat;
+    var dy = lat - centres[r].lat;
+    var d = dx * dx + dy * dy;
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  });
+  return best;
+}
+
 function parsePsi(json) {
   var item = latestItem(json);
   var v = regional(item.readings.psi_twenty_four_hourly);
@@ -58,7 +112,8 @@ function parsePsi(json) {
     regions: v.slice(0, 5),
     psi: v[5],
     updated: hhmm(item.timestamp),
-    epoch: epoch(item.timestamp)
+    epoch: epoch(item.timestamp),
+    centres: regionCentres(json)
   };
 }
 
@@ -68,7 +123,7 @@ function parsePm25(json) {
   return { regions: v.slice(0, 5), pm25: v[5] };
 }
 
-function toMessage(psi, pm25) {
+function toMessage(psi, pm25, region) {
   var pmRegions = pm25 ? pm25.regions : [MISSING, MISSING, MISSING, MISSING, MISSING];
   return {
     PSI: psi.psi,
@@ -84,7 +139,8 @@ function toMessage(psi, pm25) {
     PSI_WEST: psi.regions[3],
     PSI_CENTRAL: psi.regions[4],
     UPDATED: psi.updated,
-    UPDATED_EPOCH: psi.epoch
+    UPDATED_EPOCH: psi.epoch,
+    REGION: region === undefined ? MISSING : region
   };
 }
 
@@ -94,5 +150,7 @@ module.exports = {
   parsePm25: parsePm25,
   toMessage: toMessage,
   hhmm: hhmm,
-  epoch: epoch
+  epoch: epoch,
+  nearestRegion: nearestRegion,
+  regionCentres: regionCentres
 };

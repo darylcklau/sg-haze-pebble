@@ -70,4 +70,27 @@ assert.throws(function () {
   haze.parsePsi({ items: [{ readings: { psi_twenty_four_hourly: { north: null } } }] });
 }, /No values/);
 
+// Nearest region by phone position (REGIONS order: north, south, east, west, central).
+assert.strictEqual(haze.nearestRegion(1.3496, 103.9568), 2);   // Tampines -> east
+assert.strictEqual(haze.nearestRegion(1.3329, 103.7436), 3);   // Jurong East -> west
+assert.strictEqual(haze.nearestRegion(1.4382, 103.7890), 0);   // Woodlands -> north
+assert.strictEqual(haze.nearestRegion(1.2494, 103.8303), 1);   // Sentosa -> south
+assert.strictEqual(haze.nearestRegion(1.3508, 103.8484), 4);   // Bishan -> central
+assert.strictEqual(haze.nearestRegion(51.5072, -0.1276), haze.MISSING);  // London
+assert.strictEqual(haze.nearestRegion(1.4927, 103.7414), haze.MISSING);  // Johor Bahru
+
+// Region centres come from the response when present (v2 and v1 shapes).
+var v2Meta = { data: { regionMetadata: [
+  { name: 'east', labelLocation: { latitude: 1.4, longitude: 104.0 } },
+  { name: 'national', labelLocation: { latitude: 0, longitude: 0 } }
+] } };
+assert.deepStrictEqual(haze.regionCentres(v2Meta).east, { lat: 1.4, lon: 104.0 });
+assert.strictEqual(haze.regionCentres(v2Meta).west.lon, 103.7);
+var v1Meta = { region_metadata: [{ name: 'west', label_location: { latitude: 1.3, longitude: 103.6 } }] };
+assert.deepStrictEqual(haze.regionCentres(v1Meta).west, { lat: 1.3, lon: 103.6 });
+assert.ok(psi.centres.north);
+
+assert.strictEqual(haze.toMessage(psi, pm, 2).REGION, 2);
+assert.strictEqual(haze.toMessage(psi, pm).REGION, haze.MISSING);
+
 console.log('All haze tests passed');

@@ -2,8 +2,12 @@
 
 Shows Singapore's current haze status from NEA on your Pebble:
 
-- **24-hr PSI** (national) and **1-hr PM2.5** (worst region) side by side in weight:
+- **24-hr PSI** and **1-hr PM2.5** for **your region**, side by side in weight:
   each gets half the screen, a large number, and its own NEA band colour
+  - The phone's location picks the nearest of NEA's five regions (North, South,
+    East, West, Central); the caption names it, e.g. "East 24-hr PSI"
+  - With location off, slow, or outside Singapore, it shows the **National**
+    reading instead, which is the worst of the five regions
   - PSI: Good / Moderate / Unhealthy / Very Unhealthy / Hazardous
   - PM2.5: Normal / Elevated / High / Very High
 - **Down** opens a table of PSI and PM2.5 for North, South, East, West, Central
@@ -24,6 +28,8 @@ The app uses the API instead of scraping haze.gov.sg, because that page's HTML
 can change at any time.
 
 ## Using it
+
+- Allow the Pebble phone app to use location, or you'll get the National reading.
 
 - Opens and fetches automatically.
 - **Select** refreshes on demand.

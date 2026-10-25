@@ -45,6 +45,7 @@ typedef struct {
   int32_t pm25_regions[NUM_REGIONS];  // same order
   char updated[8];
   int32_t epoch;                      // UTC seconds of the reading, or MISSING
+  int32_t region;                     // index of the user's nearest region, or MISSING
   bool valid;
 } HazeData;
 
@@ -54,8 +55,10 @@ typedef struct {
   TextLayer *caption;
   TextLayer *value;
   TextLayer *desc;
+  const char *label;                  // "24-hr PSI" / "1-hr PM2.5"
   int band;
   char value_buf[8];
+  char caption_buf[32];
 } Panel;
 
 enum { PANEL_PSI, PANEL_PM25, NUM_PANELS };
@@ -179,7 +182,11 @@ static void panel_update_proc(Layer *layer, GContext *ctx) {
 #endif
 }
 
-static void set_panel(Panel *panel, int32_t value, int band, const char *desc) {
+static void set_panel(Panel *panel, const char *place, int32_t value, int band,
+                      const char *desc) {
+  snprintf(panel->caption_buf, sizeof(panel->caption_buf), "%s%s%s", place, *place ? " " : "",
+           panel->label);
+  text_layer_set_text(panel->caption, panel->caption_buf);
   panel->band = value == MISSING ? -1 : band;
   GColor fg = band_fg(panel->band);
   text_layer_set_text_color(panel->caption, fg);
@@ -197,15 +204,30 @@ static void set_panel(Panel *panel, int32_t value, int band, const char *desc) {
   layer_mark_dirty(panel->bg);
 }
 
+// The reading for the user's region, or the national one (worst region) when their
+// location is unknown or that region has no reading. *place names whichever was used.
+static int32_t local_reading(const int32_t *regions, int32_t national, const char **place) {
+  int32_t r = s_data.region;
+  if (r >= 0 && r < NUM_REGIONS && regions[r] != MISSING) {
+    *place = REGION_NAMES[r];
+    return regions[r];
+  }
+  *place = "National";
+  return national;
+}
+
 static void render(void) {
   if (!s_data.valid) {
-    set_panel(&s_panels[PANEL_PSI], MISSING, 0, NULL);
-    set_panel(&s_panels[PANEL_PM25], MISSING, 0, NULL);
+    set_panel(&s_panels[PANEL_PSI], "", MISSING, 0, NULL);
+    set_panel(&s_panels[PANEL_PM25], "", MISSING, 0, NULL);
     return;
   }
-  set_panel(&s_panels[PANEL_PSI], s_data.psi, psi_band(s_data.psi), psi_descriptor(s_data.psi));
-  set_panel(&s_panels[PANEL_PM25], s_data.pm25, pm25_band(s_data.pm25),
-            s_data.pm25 == MISSING ? NULL : pm25_descriptor(s_data.pm25));
+  const char *place;
+  int32_t psi = local_reading(s_data.psi_regions, s_data.psi, &place);
+  set_panel(&s_panels[PANEL_PSI], place, psi, psi_band(psi), psi_descriptor(psi));
+  int32_t pm25 = local_reading(s_data.pm25_regions, s_data.pm25, &place);
+  set_panel(&s_panels[PANEL_PM25], place, pm25, pm25_band(pm25),
+            pm25 == MISSING ? NULL : pm25_descriptor(pm25));
 }
 
 static TextLayer *make_text(Layer *parent, GRect frame, const char *font_key,
@@ -220,7 +242,7 @@ static TextLayer *make_text(Layer *parent, GRect frame, const char *font_key,
 
 // text_top is where the text starts inside the panel (round screens push it inward).
 static void panel_create(Panel *panel, int index, Layer *root, GRect frame, int text_top,
-                         int text_h, const char *caption) {
+                         int text_h, const char *label) {
   panel->bg = layer_create_with_data(frame, sizeof(int));
   *(int *)layer_get_data(panel->bg) = index;
   layer_set_update_proc(panel->bg, panel_update_proc);
@@ -233,7 +255,7 @@ static void panel_create(Panel *panel, int index, Layer *root, GRect frame, int 
                            VALUE_FONT, GTextAlignmentCenter);
   panel->desc = make_text(panel->bg, GRect(0, text_top + text_h - DESC_H, w, DESC_H), DESC_FONT,
                           GTextAlignmentCenter);
-  text_layer_set_text(panel->caption, caption);
+  panel->label = label;
 }
 
 static void panel_destroy(Panel *panel) {
@@ -343,8 +365,9 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
   Tuple *psi = dict_find(iter, MESSAGE_KEY_PSI);
   if (!psi) return;
 
-  int old_psi_band = s_data.valid ? psi_band(s_data.psi) : 0;
-  int old_pm25_band = s_data.valid && s_data.pm25 != MISSING ? pm25_band(s_data.pm25) : 0;
+  const char *place;
+  int32_t old_psi = s_data.valid ? local_reading(s_data.psi_regions, s_data.psi, &place) : 0;
+  int32_t old_pm25 = s_data.valid ? local_reading(s_data.pm25_regions, s_data.pm25, &place) : 0;
 
   s_data.psi = psi->value->int32;
   s_data.pm25 = tuple_int(iter, MESSAGE_KEY_PM25);
@@ -362,12 +385,16 @@ static void inbox_received(DictionaryIterator *iter, void *context) {
   snprintf(s_data.updated, sizeof(s_data.updated), "%s",
            updated ? updated->value->cstring : "--:--");
   s_data.epoch = tuple_int(iter, MESSAGE_KEY_UPDATED_EPOCH);
+  s_data.region = tuple_int(iter, MESSAGE_KEY_REGION);
   s_data.valid = true;
   persist_write_data(PERSIST_KEY_DATA, &s_data, sizeof(s_data));
 
-  // Buzz when either reading crosses into a worse band.
-  bool worse = psi_band(s_data.psi) > old_psi_band ||
-               (s_data.pm25 != MISSING && pm25_band(s_data.pm25) > old_pm25_band);
+  // Buzz when either of the user's readings crosses into a worse band.
+  int32_t psi_now = local_reading(s_data.psi_regions, s_data.psi, &place);
+  int32_t pm25_now = local_reading(s_data.pm25_regions, s_data.pm25, &place);
+  if (old_pm25 == MISSING) old_pm25 = 0;
+  bool worse = psi_band(psi_now) > psi_band(old_psi) ||
+               (pm25_now != MISSING && pm25_band(pm25_now) > pm25_band(old_pm25));
   if (worse) {
     vibes_short_pulse();
   }

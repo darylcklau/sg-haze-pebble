@@ -28,6 +28,17 @@ can change at any time.
 - **Select** refreshes on demand.
 - Refreshes itself at :05 and :35 past each hour while the app is open (NEA publishes hourly).
 
+## Install from your phone (no SDK needed)
+
+Every push that touches `pebble-haze/` is built by GitHub Actions
+(`.github/workflows/pebble-haze.yml`). The newest build is attached to the
+`pebble-haze-latest` release:
+
+1. On your phone, open the repo's **Releases** page and tap **SG Haze (latest build)**.
+2. Download `sg-haze.pbw`.
+3. Open the file and choose the **Pebble** app. It installs onto the paired watch.
+4. On the watch, open **SG Haze** from the app menu.
+
 ## Build
 
 Requires the Pebble SDK (Rebble's `pebble-tool`, or the CloudPebble / Rebble dev environment).

@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "keywords": ["pebble-app"],
   "private": true,
+  "license": "MIT",
   "dependencies": {},
   "scripts": {
     "test": "node test/haze.test.js"

@@ -71,3 +71,8 @@ node test/haze.test.js
 Unofficial app, not affiliated with NEA. Contains information from the PSI and
 PM2.5 datasets accessed from data.gov.sg, made available under the terms of the
 [Singapore Open Data Licence version 1.0](https://data.gov.sg/open-data-licence).
+
+## Licence
+
+The app's code is MIT licensed (see `LICENSE`). The NEA data it displays is
+covered separately by the Singapore Open Data Licence, as noted above.

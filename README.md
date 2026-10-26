@@ -57,7 +57,8 @@ pebble build
 pebble install --phone <phone-ip>      # or: pebble install --emulator basalt
 ```
 
-Targets: aplite, basalt, chalk, diorite, emery.
+Targets: aplite, basalt, diorite, emery (Pebble Time 2), flint (Pebble 2 Duo).
+Round watches (chalk, gabbro) are left out until their layout has been checked.
 
 ## Tests
 

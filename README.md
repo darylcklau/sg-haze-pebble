@@ -38,9 +38,8 @@ can change at any time.
 
 ## Install from your phone (no SDK needed)
 
-Every push that touches `pebble-haze/` is built by GitHub Actions
-(`.github/workflows/pebble-haze.yml`). The newest build is attached to the
-`pebble-haze-latest` release:
+Every push to `main` is built by GitHub Actions (`.github/workflows/build.yml`).
+The newest build is attached to the `latest` release:
 
 1. On your phone, open the repo's **Releases** page and tap **SG Haze (latest build)**.
 2. Download `sg-haze.pbw`.
@@ -52,7 +51,6 @@ Every push that touches `pebble-haze/` is built by GitHub Actions
 Requires the Pebble SDK (Rebble's `pebble-tool`, or the CloudPebble / Rebble dev environment).
 
 ```sh
-cd pebble-haze
 pebble build
 pebble install --phone <phone-ip>      # or: pebble install --emulator basalt
 ```
@@ -67,3 +65,9 @@ The phone-side parsing (`src/pkjs/haze.js`) is plain JS:
 ```sh
 node test/haze.test.js
 ```
+
+## Data and attribution
+
+Unofficial app, not affiliated with NEA. Contains information from the PSI and
+PM2.5 datasets accessed from data.gov.sg, made available under the terms of the
+[Singapore Open Data Licence version 1.0](https://data.gov.sg/open-data-licence).

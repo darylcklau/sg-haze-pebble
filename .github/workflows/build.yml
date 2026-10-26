@@ -1,0 +1,100 @@
+name: Build SG Haze Pebble app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test phone-side parsing
+        run: node test/haze.test.js
+
+      - name: Install Pebble SDK
+        run: |
+          pip install pebble-tool==5.0.40
+          pebble sdk install latest
+
+      - name: Build
+        run: |
+          pebble build
+          cp build/*.pbw sg-haze.pbw
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sg-haze-pbw
+          path: sg-haze.pbw
+
+      # A single rolling release gives a fixed download link that's easy to open on a phone.
+      - name: Publish latest build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest sg-haze.pbw \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "SG Haze (latest build)" \
+            --notes "Built from ${GITHUB_REF_NAME} at ${GITHUB_SHA::7}. Open sg-haze.pbw on your phone with the Pebble app to install."
+
+      # Best effort: screenshot the emulator so layout changes can be checked without a watch.
+      # Files are named <platform>_<screen>.png, the naming `pebble publish` expects for uploads.
+      # Pushed to a separate branch so it never clutters the app's own history.
+      - name: Emulator screenshots
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          sudo apt-get install -y -qq libsdl2-2.0-0 libpixman-1-0 libglib2.0-0 xvfb > /dev/null
+          QEMU=$(find ~/.local/share/pebble-sdk -name 'qemu-pebble' -type f | head -1)
+          echo "qemu-pebble: ${QEMU:-not found}"
+          if [ -n "$QEMU" ]; then export PEBBLE_QEMU_PATH="$QEMU"; fi
+          mkdir -p shots
+          for p in emery basalt flint; do
+            # First install boots the emulator; logs are attached before the second
+            # install so a crash on launch is captured.
+            timeout 180 xvfb-run -a pebble install --emulator $p || { echo "install on $p failed"; continue; }
+            sleep 5
+            timeout 90 pebble logs --emulator $p > shots/${p}_logs.txt 2>&1 &
+            LOGS=$!
+            sleep 3
+            timeout 60 pebble install --emulator $p || true
+            sleep 2
+            timeout 60 pebble screenshot --emulator $p --no-open shots/${p}_launch.png || true
+            sleep 25   # let PebbleKit JS fetch live NEA data
+            timeout 60 pebble screenshot --emulator $p --no-open shots/${p}_main.png || true
+            timeout 30 pebble emu-button --emulator $p click down || true
+            sleep 2
+            timeout 60 pebble screenshot --emulator $p --no-open shots/${p}_regions.png || true
+            kill $LOGS 2>/dev/null || true
+            pebble kill || true
+            echo "=== $p logs ==="; cat shots/${p}_logs.txt
+          done
+          ls -la shots
+
+      - name: Publish screenshots
+        if: always()
+        continue-on-error: true
+        run: |
+          [ -n "$(ls shots/*.png 2>/dev/null)" ] || { echo "No screenshots taken"; exit 0; }
+          cd shots
+          git init -q -b screenshots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add .
+          git commit -q -m "Screenshots for ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots
